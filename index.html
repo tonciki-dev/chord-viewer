@@ -728,13 +728,13 @@ textarea::placeholder { color: var(--text-dim); }
       <button class="lib-new-btn" id="libNewBtnMob">＋ 新規</button>
       <button class="mob-del-btn" id="mobDelBtn" title="選択中の曲を削除">🗑</button>
     </div>
-    <div class="mob-tool-bar">
+    <div class="mob-tool-bar" id="mobToolBar">
       <span id="charCountMob" style="font-size:0.64rem;color:var(--text-dim);">0 文字</span>
-      <button class="chord-pick-btn" onclick="document.getElementById('chordPickBtn').click()">コード</button>
-      <button class="chord-insert-inline-btn" onclick="document.getElementById('chordInsertInlineBtn').click()">挿入</button>
+      <button class="chord-pick-btn" id="mobChordBtn">コード</button>
+      <button class="chord-insert-inline-btn" id="mobInsertBtn">挿入</button>
       <span class="panel-divider"></span>
-      <button class="lib-save-btn" onclick="document.getElementById('libSaveBtn').click()">💾 保存</button>
-      <button class="help-btn" onclick="document.getElementById('helpBtn').click()">説明</button>
+      <button class="lib-save-btn" id="mobSaveBtn">💾 保存</button>
+      <button class="help-btn" id="mobHelpBtn">説明</button>
     </div>
     <div class="panel-bar">
       <div class="bar-left"><div class="dot"></div>タイトル・歌詞</div>
@@ -1686,6 +1686,7 @@ const INST_LABEL = { ukulele:'ウクレレ', guitar:'ギター', bass:'ベース
 function render() {
   const raw = textarea.value;
   document.getElementById('charCount').textContent = raw.length + ' 文字';
+  const _ccm = document.getElementById('charCountMob'); if(_ccm) _ccm.textContent = raw.length + ' 文字';
   const ccm = document.getElementById('charCountMob'); if(ccm) ccm.textContent = raw.length + ' 文字';
   printTitle.textContent = titleInput.value.trim();
   const metaParts = [];
@@ -2432,6 +2433,30 @@ document.getElementById('helpOverlay').addEventListener('click', (e) => {
   document.getElementById('chordPickerOverlay').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
   });
+})();
+</script>
+
+<script>
+// mob-tool-barのボタンイベント
+(function() {
+  // コードボタン
+  document.getElementById('mobChordBtn').addEventListener('click', function() {
+    document.getElementById('chordPickBtn').click();
+  });
+  // 挿入ボタン
+  document.getElementById('mobInsertBtn').addEventListener('click', function() {
+    document.getElementById('chordInsertInlineBtn').click();
+  });
+  // 保存ボタン
+  document.getElementById('mobSaveBtn').addEventListener('click', function() {
+    document.getElementById('libSaveBtn').click();
+  });
+  // 説明ボタン
+  document.getElementById('mobHelpBtn').addEventListener('click', function() {
+    document.getElementById('helpBtn').click();
+  });
+  // charCount同期
+  const origRender = window.render;
 })();
 </script>
 
