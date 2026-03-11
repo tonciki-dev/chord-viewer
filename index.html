@@ -663,8 +663,11 @@ textarea::placeholder { color: var(--text-dim); }
   .inst-label { display: none; }
   .inst-btn { flex: 1; min-width: 0; justify-content: center; padding: 3px 2px; font-size: 0.68rem; white-space: nowrap; border-radius: 4px; }
   .mob-top-tabs { display: flex; flex-shrink: 0; background: var(--panel2); border-bottom: 1px solid var(--border); }
-  .mob-top-tab { flex: 1; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-dim); font-family: "Noto Sans JP", sans-serif; font-size: 0.8rem; padding: 7px 4px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 4px; }
-  .mob-top-tab.active { color: var(--accent-light); border-bottom-color: var(--accent); background: rgba(212,160,68,0.07); }
+  .mob-top-tab { flex: 1; background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-dim); font-family: "Noto Sans JP", sans-serif; font-size: 0.8rem; padding: 7px 4px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  #mobTabEdit.active { color: #fff; background: rgba(210,100,20,0.85); border-bottom-color: #e06010; }
+  #mobTabPreview.active { color: #fff; background: rgba(30,100,200,0.85); border-bottom-color: #2060e0; }
+  #mobTabEdit:not(.active) { color: #c07040; }
+  #mobTabPreview:not(.active) { color: #6090c0; }
   .workspace { flex: 1; min-height: 0; grid-template-columns: 1fr; grid-template-rows: 1fr; overflow: hidden; display: grid; }
   .library-panel { display: none !important; }
   .editor-panel { display: none !important; border-right: none; flex-direction: column; overflow: hidden; }
