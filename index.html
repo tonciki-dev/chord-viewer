@@ -633,7 +633,6 @@ textarea::placeholder { color: var(--text-dim); }
 /* ── Mobile ── */
 .mob-top-tabs { display: none; }
 .mob-song-select-wrap { display: none; }
-.mob-tool-bar { display: none; }
 .mob-song-select {
   flex: 1; background: var(--panel); color: var(--text);
   border: 1px solid var(--border); border-radius: 6px;
@@ -671,8 +670,7 @@ textarea::placeholder { color: var(--text-dim); }
   .view-panel { display: none; flex-direction: column; overflow: hidden; }
   .editor-panel.mob-active, .view-panel.mob-active { display: flex; }
   .mob-song-select-wrap { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-bottom: 1px solid var(--border); background: var(--panel2); flex-shrink: 0; }
-  .mob-tool-bar { display: flex !important; align-items: center; gap: 5px; padding: 5px 8px; border-bottom: 1px solid var(--border); background: var(--panel2); flex-shrink: 0; flex-wrap: wrap; }
-  .panel-bar { display: none !important; }
+  .panel-bar { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 5px !important; padding: 5px 8px !important; flex-shrink: 0 !important; }
   .editor-panel .title-row { flex-shrink: 0; flex-wrap: wrap; gap: 4px !important; padding: 4px 10px; }
   .title-input { font-size: 0.95rem !important; }
   textarea { flex: 1; min-height: 0; font-size: 1rem; line-height: 1.9; padding: 10px 12px; -webkit-text-size-adjust: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -727,14 +725,6 @@ textarea::placeholder { color: var(--text-dim); }
       <select class="mob-song-select" id="mobSongSelect"><option value="">— 曲を選択 —</option></select>
       <button class="lib-new-btn" id="libNewBtnMob">＋ 新規</button>
       <button class="mob-del-btn" id="mobDelBtn" title="選択中の曲を削除">🗑</button>
-    </div>
-    <div class="mob-tool-bar" id="mobToolBar">
-      <span id="charCountMob" style="font-size:0.64rem;color:var(--text-dim);">0 文字</span>
-      <button class="chord-pick-btn" id="mobChordBtn">コード</button>
-      <button class="chord-insert-inline-btn" id="mobInsertBtn">挿入</button>
-      <span class="panel-divider"></span>
-      <button class="lib-save-btn" id="mobSaveBtn">💾 保存</button>
-      <button class="help-btn" id="mobHelpBtn">説明</button>
     </div>
     <div class="panel-bar">
       <div class="bar-left"><div class="dot"></div>タイトル・歌詞</div>
@@ -1686,7 +1676,6 @@ const INST_LABEL = { ukulele:'ウクレレ', guitar:'ギター', bass:'ベース
 function render() {
   const raw = textarea.value;
   document.getElementById('charCount').textContent = raw.length + ' 文字';
-  const _ccm = document.getElementById('charCountMob'); if(_ccm) _ccm.textContent = raw.length + ' 文字';
   const ccm = document.getElementById('charCountMob'); if(ccm) ccm.textContent = raw.length + ' 文字';
   printTitle.textContent = titleInput.value.trim();
   const metaParts = [];
@@ -2433,30 +2422,6 @@ document.getElementById('helpOverlay').addEventListener('click', (e) => {
   document.getElementById('chordPickerOverlay').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
   });
-})();
-</script>
-
-<script>
-// mob-tool-barのボタンイベント
-(function() {
-  // コードボタン
-  document.getElementById('mobChordBtn').addEventListener('click', function() {
-    document.getElementById('chordPickBtn').click();
-  });
-  // 挿入ボタン
-  document.getElementById('mobInsertBtn').addEventListener('click', function() {
-    document.getElementById('chordInsertInlineBtn').click();
-  });
-  // 保存ボタン
-  document.getElementById('mobSaveBtn').addEventListener('click', function() {
-    document.getElementById('libSaveBtn').click();
-  });
-  // 説明ボタン
-  document.getElementById('mobHelpBtn').addEventListener('click', function() {
-    document.getElementById('helpBtn').click();
-  });
-  // charCount同期
-  const origRender = window.render;
 })();
 </script>
 
