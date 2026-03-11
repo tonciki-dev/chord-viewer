@@ -1,6 +1,6 @@
 {
-  "name": "コード歌詞ビューワー",
-  "short_name": "コードビューワー",
+  "name": "コード譜職人",
+  "short_name": "コード譜職人",
   "description": "コード付き歌詞を表示・管理するアプリ by 所沢ジョニー",
   "start_url": "./index.html",
   "scope": "./",
