@@ -667,9 +667,10 @@ textarea::placeholder { color: var(--text-dim); }
   .mob-top-tab.active { color: var(--accent-light); border-bottom-color: var(--accent); background: rgba(212,160,68,0.07); }
   .workspace { flex: 1; min-height: 0; grid-template-columns: 1fr; grid-template-rows: 1fr; overflow: hidden; display: grid; }
   .library-panel { display: none !important; }
-  .editor-panel { display: none; border-right: none; flex-direction: column; overflow: hidden; }
-  .view-panel { display: none; flex-direction: column; overflow: hidden; }
-  .editor-panel.mob-active, .view-panel.mob-active { display: flex; }
+  .editor-panel { display: none !important; border-right: none; flex-direction: column; overflow: hidden; }
+  .view-panel { display: none !important; flex-direction: column; overflow: hidden; }
+  .editor-panel.mob-active { display: flex !important; flex-direction: column; }
+  .view-panel.mob-active { display: flex !important; flex-direction: column; }
   .mob-song-select-wrap { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-bottom: 1px solid var(--border); background: var(--panel2); flex-shrink: 0; }
   .mob-tool-bar { display: flex !important; align-items: center; gap: 5px; padding: 5px 8px; border-bottom: 1px solid var(--border); background: var(--panel2); flex-shrink: 0; flex-wrap: wrap; }
   .panel-bar { display: none !important; }
@@ -730,11 +731,11 @@ textarea::placeholder { color: var(--text-dim); }
     </div>
     <div class="mob-tool-bar">
       <span id="charCountMob" style="font-size:0.64rem;color:var(--text-dim);">0 文字</span>
-      <button class="chord-pick-btn" id="mobChordBtn">コード</button>
-      <button class="chord-insert-inline-btn" id="mobInsertBtn">挿入</button>
+      <button class="chord-pick-btn" onclick="document.getElementById('chordPickBtn').click()">コード</button>
+      <button class="chord-insert-inline-btn" onclick="document.getElementById('chordInsertInlineBtn').click()">挿入</button>
       <span class="panel-divider"></span>
-      <button class="lib-save-btn" id="mobSaveBtn">💾 保存</button>
-      <button class="help-btn" id="mobHelpBtn">説明</button>
+      <button class="lib-save-btn" onclick="document.getElementById('libSaveBtn').click()">💾 保存</button>
+      <button class="help-btn" onclick="document.getElementById('helpBtn').click()">説明</button>
     </div>
     <div class="panel-bar">
       <div class="bar-left"><div class="dot"></div>タイトル・歌詞</div>
@@ -844,7 +845,7 @@ const DB_UKULELE = {
   'C6':'0000','G6':'0202','A6':'2424',
   'Cadd9':'0205','Gadd9':'0230','Aadd9':'2402',
   'C9':'0201','D9':'2423','G9':'0212','A9':'0102',
-  'Am7b5':'2323','Em7b5':'0232','Dm7b5':'2313',,
+  'Am7b5':'2323','Em7b5':'0232','Dm7b5':'2313',
   'CmM7':'0332','C#mM7':'1443','DbmM7':'1443','DmM7':'2554','D#mM7':'3110','EbmM7':'3110',
   'EmM7':'1402','FmM7':'1013','F#mM7':'2124','GbmM7':'2124','GmM7':'0231','G#mM7':'4342','AbmM7':'4342',
   'AmM7':'1100','A#mM7':'2211','BbmM7':'2211','BmM7':'3322',
@@ -914,7 +915,7 @@ const DB_GUITAR = {
   'C7sus4':'x33313','D7sus4':'xx0213','G7sus4':'3x3011','A7sus4':'x02030',
   'Cadd9': 'x32030','Dadd9': 'xx0230','Eadd9': '024100','Gadd9': '3x2033','Aadd9': 'x02200',
   'C9':    'x32330','D9':    'x54555','G9':    '3x2333','A9':    'x02423',
-  'Dm7b5': 'xx0111','Em7b5': '0x2333','Am7b5': 'x01213',,
+  'Dm7b5': 'xx0111','Em7b5': '0x2333','Am7b5': 'x01213',
   'CmM7':'x35343','C#mM7':'x46454','DbmM7':'x46454','DmM7':'xx0221','D#mM7':'xx1332','EbmM7':'xx1332',
   'EmM7':'021100','FmM7':'x03111','F#mM7':'244321','GbmM7':'244321','GmM7':'310030','G#mM7':'466544','AbmM7':'466544',
   'AmM7':'x02110','A#mM7':'x13221','BbmM7':'x13221','BmM7':'x24332',
@@ -984,7 +985,7 @@ const DB_BASS = {
   'A#7':'1:1',  'Bb7':'1:1',
   'C#m7':'2:4','Dbm7':'2:4','D#m7':'3:1','Ebm7':'3:1',
   'F#m7':'0:2','Gbm7':'0:2','G#m7':'0:4','Abm7':'0:4',
-  'A#m7':'1:1','Bbm7':'1:1',,
+  'A#m7':'1:1','Bbm7':'1:1',
   'CmM7':'2:3',
   'Csus2':'2:3',
   'Csus4':'2:3',
@@ -2057,31 +2058,6 @@ render();
 if (window.innerWidth <= 700) {
   switchMobTab('edit');
 }
-
-// mob-tool-barのイベント（DOMContentLoaded後に設定）
-document.addEventListener('DOMContentLoaded', function() {
-  const mobChordBtn = document.getElementById('mobChordBtn');
-  const mobInsertBtn = document.getElementById('mobInsertBtn');
-  const mobSaveBtn = document.getElementById('mobSaveBtn');
-  const mobHelpBtn = document.getElementById('mobHelpBtn');
-
-  if (mobChordBtn) mobChordBtn.addEventListener('click', function() {
-    // コードピッカーを直接開く
-    document.getElementById('chordPickerOverlay').classList.add('open');
-    if (typeof buildGrid === 'function') buildGrid();
-    if (typeof updateAll === 'function') updateAll();
-  });
-  if (mobInsertBtn) mobInsertBtn.addEventListener('click', function() {
-    // インライン挿入を直接実行
-    if (typeof window._cpUpdateHook === 'function') {
-      document.getElementById('chordInsertInlineBtn').dispatchEvent(new MouseEvent('click'));
-    }
-  });
-  if (mobSaveBtn) mobSaveBtn.addEventListener('click', saveSong);
-  if (mobHelpBtn) mobHelpBtn.addEventListener('click', function() {
-    document.getElementById('helpOverlay').classList.add('open');
-  });
-});
 
 // =====================================================================
 // SHARED CAPTURE  (used by both PDF and Print)
