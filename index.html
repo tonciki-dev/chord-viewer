@@ -2072,6 +2072,11 @@ async function captureContent() {
   const USABLE_W_MM = 210 - 12 * 2;  // A4 - margins
   const renderW = Math.round(USABLE_W_MM * MM_TO_PX);
 
+  // view-panelが非表示の場合は一時的に表示
+  const viewPanel = document.querySelector('.view-panel');
+  const viewPanelWasHidden = viewPanel && !viewPanel.classList.contains('mob-active') && window.innerWidth <= 700;
+  if (viewPanelWasHidden) viewPanel.style.display = 'flex';
+
   const scrollEl = document.querySelector('.view-scroll');
   const orig = {
     maxHeight: scrollEl.style.maxHeight,
@@ -2133,6 +2138,7 @@ async function captureContent() {
   scrollEl.style.overflow  = orig.overflow;
   scrollEl.style.width     = orig.width;
   scrollEl.style.padding   = orig.padding;
+  if (viewPanelWasHidden) viewPanel.style.display = '';
 
   return { canvas, renderW, DPI };
 }
