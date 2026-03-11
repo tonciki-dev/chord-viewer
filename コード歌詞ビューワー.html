@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コード歌詞ビューワー</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#d4a044">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="コードビューワー">
+<link rel="apple-touch-icon" href="icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&family=Kiwi+Maru:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --bg: #161616;
+  --panel: #1e1e1e;
+  --panel2: #242424;
+  --border: #333;
+  --accent: #d4a044;
+  --accent-dim: #7a5a20;
+  --accent-light: #f0c870;
+  --text: #e8e8e8;
+  --text-dim: #888;
+  --chord-col: #f0c050;
+  --unknown: #e05555;
+  --svg-bg-fill: #1c1c1c;
+  --svg-fret-stroke: #333;
+  --svg-str-stroke: #6a5840;
+  --svg-nut-fill: #c8863a;
+  --svg-label-fill: #7a5030;
+}
+:root.light {
+  --bg: #f5f0e8;
+  --panel: #fffdf6;
+  --panel2: #eee8d8;
+  --border: #d0c8b0;
+  --accent: #b07020;
+  --accent-dim: #d4a044;
+  --accent-light: #7a4a10;
+  --text: #1a1a1a;
+  --text-dim: #7a6a50;
+  --chord-col: #8a4a00;
+  --unknown: #cc2222;
+  --svg-bg-fill: #fffdf6;
+  --svg-fret-stroke: #c8c0a8;
+  --svg-str-stroke: #a09070;
+  --svg-nut-fill: #b07020;
+  --svg-label-fill: #9a7040;
+}
+
+/* Theme toggle */
+.theme-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: center; gap: 5px;
+  white-space: nowrap;
+}
+.theme-btn:hover { border-color: var(--accent); color: var(--accent-light); }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans JP', sans-serif;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+/* ── Header ── */
+header {
+  padding: 12px 22px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.logo {
+  font-family: 'Kiwi Maru', serif;
+  font-size: 1.15rem;
+  color: var(--accent-light);
+  white-space: nowrap;
+}
+.hint {
+  font-size: 0.67rem;
+  color: var(--text-dim);
+  line-height: 1.7;
+  border-left: 2px solid var(--border);
+  padding-left: 12px;
+}
+.hint code {
+  background: rgba(212,160,68,0.15);
+  color: var(--chord-col);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* ── SVG diagram theme colors ── */
+.svg-bg       { fill: var(--svg-bg-fill) !important; }
+.svg-fretline { stroke: var(--svg-fret-stroke) !important; }
+.svg-string   { stroke: var(--svg-str-stroke) !important; }
+.svg-nut      { fill: var(--svg-nut-fill) !important; }
+.svg-strlabel { fill: var(--svg-label-fill) !important; }
+/* keyboard keys — light mode overrides */
+:root.light .kw  { fill: #f8f4ec !important; stroke: #aaa !important; }
+:root.light .kb  { fill: #3a3020 !important; }
+:root.light .svg-bg { stroke: #c8b890 !important; }
+
+/* ── Instrument selector ── */
+.inst-bar {
+  padding: 5px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel2);
+}
+.inst-label { font-size: 0.66rem; color: var(--text-dim); letter-spacing: 0.08em; margin-right: 4px; }
+.inst-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  padding: 3px 12px;
+  font-size: 0.75rem;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; gap: 5px;
+}
+.inst-btn:hover { border-color: var(--accent); color: var(--text); }
+.inst-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-light); font-weight: 700; }
+
+/* ── Workspace ── */
+.workspace {
+  display: grid;
+  grid-template-columns: 200px 1fr 1fr;
+  height: calc(100vh - 105px);
+}
+
+/* ── Song library panel ── */
+.library-panel {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel2);
+  overflow: hidden;
+}
+.lib-bar {
+  padding: 7px 10px;
+  font-size: 0.67rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.lib-new-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--accent-light);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.67rem;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.lib-new-btn:hover { background: var(--accent-dim); border-color: var(--accent); }
+.lib-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+.lib-list::-webkit-scrollbar { width: 3px; }
+.lib-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.lib-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all 0.12s;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 6px;
+}
+.lib-item:hover { background: rgba(212,160,68,0.08); }
+.lib-item.active {
+  border-left-color: var(--accent);
+  background: rgba(212,160,68,0.13);
+}
+.lib-item-name {
+  font-size: 0.78rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.lib-item.active .lib-item-name { color: var(--accent-light); font-weight: 700; }
+.lib-item-del {
+  background: none; border: none;
+  color: var(--text-dim); font-size: 0.75rem;
+  cursor: pointer; padding: 2px 5px; border-radius: 3px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.lib-item-del:hover { color: var(--unknown); background: rgba(200,50,50,0.1); }
+.lib-item-date {
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+.lib-empty {
+  padding: 20px 12px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* ── Editor ── */
+.editor-panel {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.panel-bar {
+  padding: 7px 15px;
+  font-size: 0.67rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bar-left { display: flex; align-items: center; gap: 6px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+.title-row {
+  padding: 9px 15px 7px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.lib-save-btn {
+  background: none;
+  border: 1px solid var(--accent-dim);
+  color: var(--accent-light);
+  border-radius: 4px;
+  padding: 2px 9px;
+  font-size: 0.67rem;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.lib-save-btn:hover { background: var(--accent-dim); color: #fff; }
+.lib-save-btn.saved { border-color: #4a8a4a; color: #80d080; }
+.help-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 50%;
+  width: 22px; height: 22px;
+  font-size: 0.72rem;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.help-btn:hover { border-color: var(--accent); color: var(--accent-light); }
+
+/* ── Help Modal ── */
+.help-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  align-items: center; justify-content: center;
+}
+.help-overlay.open { display: flex; }
+.help-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 26px 20px;
+  max-width: 480px;
+  width: calc(100% - 32px);
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.help-modal h2 {
+  font-family: 'Kiwi Maru', serif;
+  font-size: 1rem;
+  color: var(--accent-light);
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.help-section { margin-bottom: 14px; }
+.help-section h3 {
+  font-size: 0.75rem;
+  color: var(--accent-light);
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+}
+.help-section p {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+.help-section code {
+  background: rgba(212,160,68,0.15);
+  color: var(--chord-col);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.82rem;
+}
+.help-section .example {
+  background: var(--panel2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.9;
+}
+.help-close {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none;
+  color: var(--text-dim); font-size: 1.1rem;
+  cursor: pointer; line-height: 1;
+  padding: 2px 6px; border-radius: 4px;
+  transition: all 0.15s;
+}
+.help-close:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+.title-label { font-size: 0.66rem; color: var(--text-dim); white-space: nowrap; }
+.title-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Kiwi Maru', serif;
+  font-size: 0.95rem;
+  padding: 2px 4px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.title-input:focus { border-color: var(--accent); }
+.title-input::placeholder { color: var(--text-dim); font-size: 0.82rem; }
+
+textarea {
+  flex: 1;
+  background: var(--panel);
+  color: var(--text);
+  border: none; outline: none;
+  padding: 16px 18px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.88rem;
+  line-height: 2.1;
+  resize: none;
+}
+textarea::placeholder { color: var(--text-dim); }
+
+/* ── View ── */
+.view-panel { display: flex; flex-direction: column; overflow: hidden; }
+.view-scroll {
+  flex: 1; overflow-y: auto;
+  padding: 26px 30px 80px;
+}
+.view-scroll::-webkit-scrollbar { width: 4px; }
+.view-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.print-title {
+  font-family: 'Kiwi Maru', serif;
+  font-size: 1.4rem; color: var(--accent-light); margin-bottom: 4px;
+}
+.print-title:empty { display: none; }
+.print-meta {
+  font-size: 0.72rem; color: var(--text-dim); margin-bottom: 20px;
+}
+.print-meta:empty { display: none; }
+
+/* ── Lyrics ── */
+.lyrics-wrap { font-family: 'Kiwi Maru', serif; }
+.lyric-line {
+  display: flex; flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 22px;
+}
+.line-gap { height: 18px; }
+.chunk {
+  display: inline-flex; flex-direction: column;
+  align-items: flex-start; vertical-align: bottom;
+}
+.chord-label {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.68rem; font-weight: 700;
+  color: var(--chord-col);
+  padding-left: 2px; margin-bottom: 1px;
+  white-space: nowrap;
+}
+.unknown-label {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.68rem; font-weight: 700;
+  color: var(--unknown);
+  padding-left: 2px; margin-bottom: 1px; white-space: nowrap;
+}
+.lyric-text {
+  font-size: 1.05rem; line-height: 1;
+  color: var(--text); white-space: pre; padding-left: 2px;
+}
+
+/* ── Control buttons ── */
+.ctrl-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.67rem;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s; white-space: nowrap;
+}
+.ctrl-btn:hover, .ctrl-btn.active { background: var(--accent-dim); color: var(--text); border-color: var(--accent-dim); }
+.transp-wrap { display: flex; align-items: center; gap: 4px; }
+.transp-label { font-size: 0.64rem; color: var(--text-dim); }
+.transp-step {
+  width: 20px; height: 20px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; border-radius: 4px;
+  background: none; border: 1px solid var(--border);
+  color: var(--text-dim); cursor: pointer; transition: all 0.15s;
+}
+.transp-step:hover { background: var(--accent-dim); color: var(--text); border-color: var(--accent-dim); }
+.transp-val {
+  min-width: 36px; text-align: center;
+  font-size: 0.7rem; color: var(--chord-col); font-weight: 700;
+  background: rgba(212,160,68,0.1); border-radius: 4px; padding: 2px 4px;
+}
+.transp-reset {
+  font-size: 0.6rem; color: var(--text-dim);
+  cursor: pointer; padding: 2px 4px;
+  border-radius: 3px; border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.transp-reset:hover { border-color: var(--border); color: var(--text); }
+.print-btn {
+  border-color: var(--accent-dim); color: var(--accent-light);
+  padding: 3px 11px;
+}
+.print-btn:hover { background: var(--accent-dim); color: #fff; border-color: var(--accent-dim); }
+.pdf-btn {
+  border-color: #5a3a8a; color: #c8a0f0;
+  padding: 3px 11px; background: none;
+  border-radius: 4px; border-width: 1px; border-style: solid;
+  font-size: 0.67rem; font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.pdf-btn:hover { background: #5a3a8a; color: #fff; }
+.pdf-btn:disabled { opacity: 0.5; cursor: wait; }
+
+/* ── Print ── */
+@media print {
+  * { display: none !important; }
+  #printFrame { display: block !important; position: fixed; top:0; left:0; width:100%; height:100%; border:none; }
+}
+
+/* ── Mobile ── */
+.mob-top-tabs { display: none; }
+.mob-song-select-wrap { display: none; }
+.mob-song-select {
+  flex: 1; background: var(--panel); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 10px; font-size: 0.88rem;
+  font-family: "Noto Sans JP", sans-serif;
+  outline: none; -webkit-appearance: none; appearance: none; cursor: pointer;
+}
+.mob-del-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 5px;
+  padding: 4px 7px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.mob-del-btn:hover { border-color: var(--unknown); color: var(--unknown); background: rgba(200,50,50,0.1); }
+@media (max-width: 700px) {
+  /* body をflexに変えて全体を縦積み＋スクロール可能に */
+  body {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* ヘッダー */
+  header {
+    padding: 6px 12px;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+  }
+  .logo  { font-size: 0.9rem; }
+  .hint  { display: none; }
+  .theme-btn { padding: 3px 10px; font-size: 0.68rem; }
+
+  /* 楽器バー：上下を極力詰める */
+  .inst-bar {
+    padding: 3px 8px;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+  .inst-label { display: none; }
+  .inst-btn {
+    flex: 1; min-width: 0;
+    justify-content: center;
+    padding: 3px 2px;
+    font-size: 0.68rem;
+    white-space: nowrap;
+    border-radius: 4px;
+  }
+
+  /* タブバー */
+  .mob-top-tabs {
+    display: flex;
+    flex-shrink: 0;
+    background: var(--panel2);
+    border-bottom: 1px solid var(--border);
+  }
+  .mob-top-tab {
+    flex: 1; background: none; border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    font-family: "Noto Sans JP", sans-serif;
+    font-size: 0.8rem; padding: 7px 4px;
+    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .mob-top-tab.active {
+    color: var(--accent-light);
+    border-bottom-color: var(--accent);
+    background: rgba(212,160,68,0.07);
+  }
+
+  /* ワークスペース：残り全部を使いflexで */
+  .workspace {
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+    display: grid;
+  }
+
+  /* パネル切り替え */
+  .library-panel { display: none !important; }
+  .editor-panel  { display: none; border-right: none; flex-direction: column; overflow: hidden; }
+  .view-panel    { display: none; flex-direction: column; overflow: hidden; }
+  .editor-panel.mob-active, .view-panel.mob-active { display: flex; }
+
+  /* 曲リストプルダウン */
+  .mob-song-select-wrap {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-bottom: 1px solid var(--border);
+    background: var(--panel2); flex-shrink: 0;
+  }
+
+  /* 編集パネル内部 */
+  .editor-panel .panel-bar { flex-shrink: 0; flex-wrap: wrap; gap: 5px; padding: 5px 10px; }
+  .editor-panel .title-row { flex-shrink: 0; flex-wrap: wrap; gap: 4px !important; padding: 4px 10px; }
+  .title-input { font-size: 0.95rem !important; }
+  textarea {
+    flex: 1; min-height: 0;
+    font-size: 1rem; line-height: 1.9;
+    padding: 10px 12px;
+    -webkit-text-size-adjust: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* プレビューパネル内部 */
+  .panel-bar { flex-shrink: 0; flex-wrap: wrap; overflow: visible; gap: 5px; padding: 6px 10px; }
+  .bar-left { display: none; }
+  .view-scroll {
+    flex: 1; min-height: 0;
+    padding: 14px 12px 24px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .lib-item { padding: 11px 10px; }
+  .lib-item-name { font-size: 0.9rem; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🎵 コード歌詞ビューワー<span style="font-family:'Noto Sans JP',sans-serif;font-size:0.6rem;font-weight:400;color:var(--text-dim);margin-left:8px;letter-spacing:0.05em;">by 所沢ジョニー</span></div>
+  <div class="hint">
+    コードを <code>[Am]</code> のように <code>[ ]</code> で囲んで入力。<br>
+    例：<code>[C]春の[Am]風が[F]吹いて[G7]いる</code>
+  </div>
+  <button class="theme-btn" id="themeBtn">☀️ ライト</button>
+</header>
+
+<!-- Instrument selector -->
+<div class="inst-bar">
+  <span class="inst-label">楽器</span>
+  <button class="inst-btn active" data-inst="ukulele">🎸 ウクレレ</button>
+  <button class="inst-btn" data-inst="guitar">🎸 ギター</button>
+  <button class="inst-btn" data-inst="bass">🎸 ベース</button>
+  <button class="inst-btn" data-inst="keyboard">🎹 キーボード</button>
+</div>
+
+<!-- Mobile top tabs: inst-barの直下に配置 -->
+<div class="mob-top-tabs" id="mobTopTabs">
+  <button class="mob-top-tab active" id="mobTabEdit" onclick="switchMobTab('edit')">✏️ 編集</button>
+  <button class="mob-top-tab" id="mobTabPreview" onclick="switchMobTab('preview')">🎵 プレビュー</button>
+</div>
+
+<div class="workspace">
+
+  <!-- ── Song library ── -->
+  <div class="library-panel">
+    <div class="lib-bar">
+      <span>📚 曲リスト</span>
+      <button class="lib-new-btn" id="libNewBtn">＋ 新規</button>
+    </div>
+    <div class="lib-list" id="libList">
+      <div class="lib-empty" id="libEmpty">保存した曲が<br>ここに表示されます</div>
+    </div>
+  </div>
+
+  <!-- Editor -->
+  <div class="editor-panel">
+    <div class="mob-song-select-wrap">
+      <select class="mob-song-select" id="mobSongSelect"><option value="">— 曲を選択 —</option></select>
+      <button class="lib-new-btn" id="libNewBtnMob">＋ 新規</button>
+      <button class="mob-del-btn" id="mobDelBtn" title="選択中の曲を削除">🗑</button>
+    </div>
+    <div class="panel-bar">
+      <div class="bar-left"><div class="dot"></div>タイトル・歌詞</div>
+      <div style="display:flex;gap:5px;align-items:center;">
+        <span id="charCount" style="font-size:0.64rem;">0 文字</span>
+        <button class="lib-save-btn" id="libSaveBtn">💾 保存</button>
+        <button class="help-btn" id="helpBtn" title="使い方">？</button>
+      </div>
+    </div>
+    <div class="title-row">
+      <span class="title-label">タイトル</span>
+      <input class="title-input" id="titleInput" type="text" placeholder="曲名を入力...">
+    </div>
+    <div class="title-row" style="gap:10px;">
+      <span class="title-label">作詞</span>
+      <input class="title-input" id="lyricistInput" type="text" placeholder="作詞者名..." style="font-family:'Noto Sans JP',sans-serif;font-size:0.82rem;">
+      <span class="title-label" style="margin-left:4px;">作曲</span>
+      <input class="title-input" id="composerInput" type="text" placeholder="作曲者名..." style="font-family:'Noto Sans JP',sans-serif;font-size:0.82rem;">
+    </div>
+    <textarea id="lyricsInput" placeholder="歌詞を入力..."></textarea>
+  </div>
+
+  <!-- Preview -->
+  <div class="view-panel">
+    <div class="panel-bar">
+      <div class="bar-left"><div class="dot"></div>プレビュー</div>
+      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+        <div class="transp-wrap">
+          <span class="transp-label">移調</span>
+          <button class="transp-step" id="transpDown">−</button>
+          <span class="transp-val" id="transpVal">±0</span>
+          <button class="transp-step" id="transpUp">＋</button>
+          <span class="transp-reset" id="transpReset" title="リセット">↺</span>
+        </div>
+        <div style="display:flex;gap:4px;">
+          <button class="ctrl-btn active" data-size="0.65">小</button>
+          <button class="ctrl-btn" data-size="0.9">中</button>
+          <button class="ctrl-btn" data-size="1.2">大</button>
+        </div>
+        <button class="ctrl-btn print-btn" id="printBtn">🖨 印刷</button>
+        <button class="pdf-btn" id="pdfBtn">📄 PDF保存</button>
+      </div>
+    </div>
+    <div class="view-scroll">
+      <div id="printTitle" class="print-title"></div>
+      <div id="printMeta" class="print-meta"></div>
+      <div class="lyrics-wrap" id="lyricsWrap"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// CHROMATIC / TRANSPOSE
+// =====================================================================
+const SHARPS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLATS  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const ROOT_IDX = {
+  'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,'F':5,
+  'F#':6,'Gb':6,'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,'B':11,
+  'C♯':1,'D♭':1,'D♯':3,'E♭':3,'F♯':6,'G♭':6,'G♯':8,'A♭':8,'A♯':10,'B♭':10,
+};
+const FLAT_PREFERRED = new Set([1,3,8,10]);
+function rootIdx(r){ return ROOT_IDX[r] ?? -1; }
+function idxToRoot(i,flat){ i=((i%12)+12)%12; return (flat||FLAT_PREFERRED.has(i))?FLATS[i]:SHARPS[i]; }
+function parseChord(raw){
+  const n=raw.replace(/♭/g,'b').replace(/♯/g,'#');
+  const m=n.match(/^([A-G][#b]?)(.*)/);
+  if(!m)return null;
+  const idx=rootIdx(m[1]);
+  if(idx<0)return null;
+  return{root:m[1],suffix:m[2],idx};
+}
+function transposeChord(raw,st){
+  if(st===0)return raw;
+  const p=parseChord(raw);
+  if(!p)return raw;
+  const ni=((p.idx+st)%12+12)%12;
+  const flat=raw.includes('b')||raw.includes('♭');
+  return idxToRoot(ni,flat)+p.suffix;
+}
+
+// =====================================================================
+// CHORD DATABASES
+// =====================================================================
+
+// Ukulele  G C E A  (4 digits)
+const DB_UKULELE = {
+  'C':'0003','C#':'1114','Db':'1114','D':'2220','D#':'3331','Eb':'3331',
+  'E':'1402','F':'2010','F#':'3121','Gb':'3121','G':'0232','G#':'5343','Ab':'5343',
+  'A':'2100','A#':'3211','Bb':'3211','B':'4322',
+  'Cm':'0333','C#m':'1444','Dbm':'1444','Dm':'2210','D#m':'3321','Ebm':'3321',
+  'Em':'0432','Fm':'1013','F#m':'2120','Gbm':'2120','Gm':'0231','G#m':'4342','Abm':'4342',
+  'Am':'2000','A#m':'3111','Bbm':'3111','Bm':'4222',
+  'C7':'0001','C#7':'1112','Db7':'1112','D7':'2223','D#7':'3334','Eb7':'3334',
+  'E7':'1202','F7':'2313','F#7':'2424','Gb7':'2424','G7':'0212','G#7':'1323','Ab7':'1323',
+  'A7':'0100','A#7':'1211','Bb7':'1211','B7':'2322',
+  'CM7':'0002','DM7':'2224','EM7':'1302','FM7':'2413','GM7':'0222','AM7':'1100','BM7':'4321',
+  'Cmaj7':'0002','Dmaj7':'2224','Emaj7':'1302','Fmaj7':'2413','Gmaj7':'0222','Amaj7':'1100','Bmaj7':'4321',
+  'Cm7':'0331','C#m7':'1442','Dm7':'2213','Em7':'0202','Fm7':'1313',
+  'F#m7':'2120','Gm7':'0231','G#m7':'1342','Am7':'0000','A#m7':'1111','Bbm7':'1111','Bm7':'2222',
+  'Cdim':'2323','Ddim':'1212','Edim':'0101','Fdim':'1212','Gdim':'0101','Adim':'2323','Bdim':'1212',
+  'Caug':'1003','Daug':'3221','Eaug':'1003','Faug':'2110','Gaug':'4332','Aaug':'2110','Baug':'4332',
+  'Csus2':'0205','Gsus2':'0230','Asus2':'2200','Csus4':'0013','Dsus4':'2230','Gsus4':'0233',
+  'C7sus4':'0011','G7sus4':'0213',
+  'C6':'0000','G6':'0202','A6':'2424',
+  'Cadd9':'0205','Gadd9':'0230','Aadd9':'2402',
+  'C9':'0201','D9':'2423','G9':'0212','A9':'0102',
+  'Am7b5':'2323','Em7b5':'0232','Dm7b5':'2313',
+};
+
+// Guitar  E A D G B E  (6 digits, x=muted string represented as 'x', we'll use 99 internally)
+// Standard voicings, open and first-position
+const DB_GUITAR = {
+  'C':   'x32010', 'C#':  'x46664', 'Db':  'x46664',
+  'D':   'xx0232', 'D#':  'xx1343', 'Eb':  'xx1343',
+  'E':   '022100', 'F':   '133211', 'F#':  '244322', 'Gb':  '244322',
+  'G':   '320003', 'G#':  '466544', 'Ab':  '466544',
+  'A':   'x02220', 'A#':  'x13331', 'Bb':  'x13331', 'B':   'x24442',
+  'Cm':  'x35543', 'C#m': 'x46654', 'Dbm': 'x46654',
+  'Dm':  'xx0231', 'D#m': 'xx1342', 'Ebm': 'xx1342',
+  'Em':  '022000', 'Fm':  '133111', 'F#m': '244222', 'Gbm': '244222',
+  'Gm':  '355333', 'G#m': '466444', 'Abm': '466444',
+  'Am':  'x02210', 'A#m': 'x13321', 'Bbm': 'x13321', 'Bm':  'x24432',
+  'C7':  'x32310', 'C#7': 'x46464', 'Db7': 'x46464',
+  'D7':  'xx0212', 'D#7': 'xx1323', 'Eb7': 'xx1323',
+  'E7':  '020100', 'F7':  '131211', 'F#7': '242322', 'Gb7': '242322',
+  'G7':  '320001', 'G#7': '464544', 'Ab7': '464544',
+  'A7':  'x02020', 'A#7': 'x13131', 'Bb7': 'x13131', 'B7':  'x21202',
+  'CM7': 'x32000', 'DM7': 'xx0222', 'EM7': '021100', 'FM7': '103210',
+  'GM7': '3x0002', 'AM7': 'x02120', 'BM7': 'x24342',
+  'Cmaj7':'x32000','Dmaj7':'xx0222','Emaj7':'021100','Fmaj7':'103210',
+  'Gmaj7':'3x0002','Amaj7':'x02120','Bmaj7':'x24342',
+  'Cm7': 'x35343', 'Dm7': 'xx0211', 'Em7': '020000', 'Fm7': '131111',
+  'Gm7': '353333', 'Am7': 'x02010', 'Bm7': 'x24232',
+  'Cdim': 'x3424x', 'Ddim': 'xx0131', 'Edim': '012000', 'Fdim': '1x234x',
+  'Gdim': '3x043x', 'Adim': 'x0131x', 'Bdim': 'x2303x',
+  'Caug': 'x32110', 'Daug': 'xx0332', 'Eaug': '032110', 'Faug': '103211',
+  'Gaug': '321003', 'Aaug': 'x03221', 'Baug': 'x21003',
+  'Csus2': 'x30013','Dsus2': 'xx0230','Esus2': '024400','Gsus2': '3x0013','Asus2': 'x02200',
+  'Csus4': 'x33011','Dsus4': 'xx0233','Esus4': '022200','Fsus4': '133311','Gsus4': '320013','Asus4': 'x02230',
+  'C7sus4':'x33313','D7sus4':'xx0213','G7sus4':'3x3011','A7sus4':'x02030',
+  'Cadd9': 'x32030','Dadd9': 'xx0230','Eadd9': '024100','Gadd9': '3x2033','Aadd9': 'x02200',
+  'C9':    'x32330','D9':    'x54555','G9':    '3x2333','A9':    'x02423',
+  'Dm7b5': 'xx0111','Em7b5': '0x2333','Am7b5': 'x01213',
+};
+
+// Bass: single root note positions (E A D G strings, index 0=E,1=A,2=D,3=G)
+// Format: 'activeString:fret'  — only one string is played
+// We show the lowest available root position
+const DB_BASS = {
+  'C':  '2:3',  'C#': '2:4',  'Db': '2:4',
+  'D':  '2:5',  'D#': '3:1',  'Eb': '3:1',
+  'E':  '0:0',  'F':  '0:1',  'F#': '0:2',  'Gb': '0:2',
+  'G':  '0:3',  'G#': '0:4',  'Ab': '0:4',
+  'A':  '1:0',  'A#': '1:1',  'Bb': '1:1',  'B':  '1:2',
+  // minor / 7th / etc. all use same root position
+  'Cm': '2:3',  'C#m':'2:4',  'Dbm':'2:4',
+  'Dm': '2:5',  'D#m':'3:1',  'Ebm':'3:1',
+  'Em': '0:0',  'Fm': '0:1',  'F#m':'0:2',  'Gbm':'0:2',
+  'Gm': '0:3',  'G#m':'0:4',  'Abm':'0:4',
+  'Am': '1:0',  'A#m':'1:1',  'Bbm':'1:1',  'Bm': '1:2',
+  'C7': '2:3',  'D7': '2:5',  'E7': '0:0',  'F7': '0:1',
+  'G7': '0:3',  'A7': '1:0',  'B7': '1:2',
+  'CM7':'2:3',  'DM7':'2:5',  'EM7':'0:0',  'FM7':'0:1',
+  'GM7':'0:3',  'AM7':'1:0',  'BM7':'1:2',
+  'Cmaj7':'2:3','Dmaj7':'2:5','Emaj7':'0:0','Fmaj7':'0:1',
+  'Gmaj7':'0:3','Amaj7':'1:0','Bmaj7':'1:2',
+  'Cm7':'2:3',  'Dm7':'2:5',  'Em7':'0:0',  'Fm7':'0:1',
+  'Gm7':'0:3',  'Am7':'1:0',  'Bm7':'1:2',
+  'C#7':'2:4',  'Db7':'2:4',  'D#7':'3:1',  'Eb7':'3:1',
+  'F#7':'0:2',  'Gb7':'0:2',  'G#7':'0:4',  'Ab7':'0:4',
+  'A#7':'1:1',  'Bb7':'1:1',
+  'C#m7':'2:4','Dbm7':'2:4','D#m7':'3:1','Ebm7':'3:1',
+  'F#m7':'0:2','Gbm7':'0:2','G#m7':'0:4','Abm7':'0:4',
+  'A#m7':'1:1','Bbm7':'1:1',
+};
+
+// Keyboard — chord tones as semitone sets relative to root (0=root)
+// We store interval sets; we'll build them from scale degrees
+const CHORD_INTERVALS = {
+  '':      [0,4,7],          // Major
+  'm':     [0,3,7],
+  '7':     [0,4,7,10],
+  'M7':    [0,4,7,11], 'maj7':[0,4,7,11],
+  'm7':    [0,3,7,10],
+  'dim':   [0,3,6],
+  'dim7':  [0,3,6,9],
+  'aug':   [0,4,8],
+  'sus2':  [0,2,7],
+  'sus4':  [0,5,7],
+  '7sus4': [0,5,7,10],
+  '6':     [0,4,7,9],
+  'm6':    [0,3,7,9],
+  'add9':  [0,2,4,7],
+  'madd9': [0,2,3,7],
+  '9':     [0,2,4,7,10],
+  'M9':    [0,2,4,7,11], 'maj9':[0,2,4,7,11],
+  'm9':    [0,2,3,7,10],
+  'm7b5':  [0,3,6,10],
+  'mM7':   [0,3,7,11],
+  '11':    [0,4,7,10,14%12],
+  '13':    [0,4,7,10,14%12,21%12],
+  '+':     [0,4,8],
+};
+
+function getKeyboardTones(chordName) {
+  const p = parseChord(chordName);
+  if (!p) return null;
+  const norm = p.suffix.replace(/[Mm]aj7/,'M7').replace(/[Mm]aj9/,'M9');
+  const intervals = CHORD_INTERVALS[norm];
+  if (!intervals) return null;
+  return intervals.map(i => (p.idx + i) % 12);
+}
+
+// =====================================================================
+// DB LOOKUP
+// =====================================================================
+const INSTRUMENT_DB = { ukulele: DB_UKULELE, guitar: DB_GUITAR, bass: DB_BASS };
+
+function lookup(chordName, inst) {
+  let s = chordName.replace(/♭/g,'b').replace(/♯/g,'#')
+                   .replace(/[Mm]aj7/,'M7').replace(/[Mm]aj9/,'M9');
+  if (inst === 'keyboard') return getKeyboardTones(s) ? chordName : null;
+  const db = INSTRUMENT_DB[inst] || DB_UKULELE;
+  return db[s] || null;
+}
+
+// =====================================================================
+// STATE
+// =====================================================================
+let SCALE = 0.65;
+let INSTRUMENT = 'ukulele';
+let transpose = 0;
+
+// =====================================================================
+// SVG: BASS (single root note)
+// Format in DB_BASS: 'stringIdx:fret'  stringIdx: 0=E,1=A,2=D,3=G
+// Display order top→bottom: G D A E  (same as INST_CONFIG.bass strMap [3,2,1,0])
+// =====================================================================
+function svgBass(val) {
+  const [strIdxStr, fretStr] = val.split(':');
+  const activeStr = parseInt(strIdxStr); // 0=E 1=A 2=D 3=G in DB
+  const fret      = parseInt(fretStr);
+
+  const sc    = SCALE;
+  const STRS  = 4;
+  const COLS  = 5;
+  const fretW = 13 * sc, strH = 11 * sc;
+  const leftPad = 17*sc, rightPad = 10*sc, topPad = 8*sc, botPad = 8*sc;
+  const gridW = fretW * COLS, gridH = strH * (STRS-1);
+  const W = Math.round(leftPad + gridW + rightPad);
+  const H = Math.round(topPad  + gridH + botPad);
+  const gx = leftPad, gy = topPad;
+  const fx = f => gx + f * fretW;
+  // display row: strMap [3,2,1,0] → G(db3)=row0, D(db2)=row1, A(db1)=row2, E(db0)=row3
+  const strMap = [3,2,1,0];
+  const displayRow = strMap.indexOf(activeStr); // which row to show the dot on
+  const labels = ['G','D','A','E'];
+
+  const startFret = fret > COLS ? fret : 1;
+  const sy = s => gy + s * strH;
+
+  let o = `<svg class="inline-diagram" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  o += `<rect class="svg-bg" width="${W}" height="${H}" rx="${3*sc}" fill="#1c1c1c"/>`;
+
+  // fret lines
+  for (let f=1; f<=COLS; f++)
+    o += `<line class="svg-fretline" x1="${fx(f)}" y1="${gy}" x2="${fx(f)}" y2="${gy+gridH}" stroke="#333" stroke-width="${0.7*sc}"/>`;
+
+  // string lines — highlight active string
+  for (let s=0; s<STRS; s++) {
+    const isActive = s === displayRow;
+    const thick = (0.6 + (STRS-1-s) * 0.22) * sc;
+    const col   = isActive ? '#c8a060' : '#3a2e20';
+    o += `<line class="svg-string" x1="${gx}" y1="${sy(s)}" x2="${gx+gridW}" y2="${sy(s)}" stroke="${col}" stroke-width="${thick}"/>`;
+  }
+
+  // nut
+  if (startFret === 1)
+    o += `<rect class="svg-nut" x="${gx-3*sc}" y="${gy-1}" width="${3*sc}" height="${gridH+2}" rx="${1.5*sc}" fill="#c8863a"/>`;
+  else {
+    o += `<text class="svg-strlabel" x="${gx-4*sc}" y="${gy+gridH/2+4*sc}" text-anchor="end" font-size="${6*sc}" fill="#c8863a" font-family="sans-serif" font-weight="bold">${startFret}fr</text>`;
+    o += `<line x1="${gx}" y1="${gy}" x2="${gx}" y2="${gy+gridH}" stroke="#5a4030" stroke-width="${1*sc}"/>`;
+  }
+
+  // string labels
+  for (let s=0; s<STRS; s++)
+    o += `<text class="svg-strlabel" x="${gx+gridW+4*sc}" y="${sy(s)+3*sc}" font-size="${5.5*sc}" fill="${s===displayRow?'#e8b46a':'#7a5030'}" font-family="sans-serif" font-weight="${s===displayRow?'bold':'normal'}">${labels[s]}</text>`;
+
+  // muted marks on non-active strings
+  for (let s=0; s<STRS; s++) {
+    if (s === displayRow) continue;
+    const cx = gx - 8*sc, cy = sy(s), r = 2.2*sc;
+    o += `<line x1="${cx-r}" y1="${cy-r}" x2="${cx+r}" y2="${cy+r}" stroke="#555" stroke-width="${1*sc}"/>`;
+    o += `<line x1="${cx+r}" y1="${cy-r}" x2="${cx-r}" y2="${cy+r}" stroke="#555" stroke-width="${1*sc}"/>`;
+  }
+
+  // dot or open circle
+  const y = sy(displayRow);
+  if (fret === 0) {
+    o += `<circle class="svg-open" cx="${gx-8*sc}" cy="${y}" r="${3*sc}" fill="none" stroke="#c8863a" stroke-width="${1*sc}"/>`;
+  } else {
+    const col = fret - startFret + 1;
+    const cx  = gx + (col-0.5)*fretW;
+    o += `<circle class="svg-dot" cx="${cx}" cy="${y}" r="${4.5*sc}" fill="#d0b070"/>`;
+    o += `<text class="svg-dot-txt" x="${cx}" y="${y+3*sc}" text-anchor="middle" font-size="${5.5*sc}" fill="#1a1008" font-family="sans-serif" font-weight="bold">${fret}</text>`;
+  }
+
+  return o + `</svg>`;
+}
+const INST_CONFIG = {
+  // labels & strMap: top→bottom = highest string → lowest string
+  // strMap[displayRow] = index into the DB fret string
+  ukulele: { strings: 4, labels: ['A','E','C','G'], cols: 5, fretW: 13, strH: 11, strMap:[3,2,1,0] },
+  guitar:  { strings: 6, labels: ['e','B','G','D','A','E'], cols: 5, fretW: 13, strH: 9,  strMap:[5,4,3,2,1,0] },
+  bass:    { strings: 4, labels: ['G','D','A','E'], cols: 5, fretW: 13, strH: 11, strMap:[3,2,1,0] },
+};
+
+function parseFretStr(raw, strCount) {
+  // raw may contain 'x' for muted strings
+  const s = String(raw).replace(/\s/g,'');
+  const arr = [];
+  for (let i = 0; i < strCount; i++) {
+    const c = s[i] || '0';
+    arr.push(c === 'x' ? -1 : parseInt(c) || 0);
+  }
+  return arr;
+}
+
+function svgFretted(fretsRaw) {
+  const cfg   = INST_CONFIG[INSTRUMENT] || INST_CONFIG.ukulele;
+  const STRS  = cfg.strings;
+  const COLS  = cfg.cols;
+  const sc    = SCALE;
+  const fretW = cfg.fretW * sc;
+  const strH  = cfg.strH  * sc;
+
+  const leftPad  = 17 * sc;
+  const rightPad = 10 * sc;
+  const topPad   = 8  * sc;
+  const botPad   = 8  * sc;
+
+  const gridW = fretW * COLS;
+  const gridH = strH  * (STRS - 1);
+  const W = Math.round(leftPad + gridW + rightPad);
+  const H = Math.round(topPad  + gridH + botPad);
+  const gx = leftPad, gy = topPad;
+
+  const frets = parseFretStr(fretsRaw, STRS);
+  // Reorder frets to match display order (top=high string → bottom=low string)
+  const strMap = cfg.strMap || frets.map((_,i)=>i);
+  const displayFrets = strMap.map(i => frets[i]);
+
+  const nz = displayFrets.filter(f => f > 0);
+  const maxF = nz.length ? Math.max(...nz) : 1;
+  const minF = nz.length ? Math.min(...nz) : 1;
+  const startFret = maxF > COLS ? minF : 1;
+
+  const fx = f  => gx + f * fretW;
+  const sy = s  => gy + s * strH;
+
+  let o = `<svg class="inline-diagram" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  o += `<rect class="svg-bg" width="${W}" height="${H}" rx="${3*sc}" fill="#1c1c1c"/>`;
+
+  // fret lines
+  for (let f = 1; f <= COLS; f++)
+    o += `<line class="svg-fretline" x1="${fx(f)}" y1="${gy}" x2="${fx(f)}" y2="${gy+gridH}" stroke="#333" stroke-width="${0.7*sc}"/>`;
+
+  // string lines — top row = highest/thinnest string, bottom = lowest/thickest
+  for (let s = 0; s < STRS; s++) {
+    const thick = (0.6 + (STRS-1-s) * 0.22) * sc;  // s=0(top/thin) → s=STRS-1(bottom/thick)
+    o += `<line class="svg-string" x1="${gx}" y1="${sy(s)}" x2="${gx+gridW}" y2="${sy(s)}" stroke="#6a5840" stroke-width="${thick}"/>`;
+  }
+
+  // nut / position
+  if (startFret === 1) {
+    o += `<rect class="svg-nut" x="${gx-3*sc}" y="${gy-1}" width="${3*sc}" height="${gridH+2}" rx="${1.5*sc}" fill="#c8863a"/>`;
+  } else {
+    o += `<text class="svg-strlabel" x="${gx-4*sc}" y="${gy+gridH/2+4*sc}" text-anchor="end" font-size="${6*sc}" fill="#c8863a" font-family="sans-serif" font-weight="bold">${startFret}fr</text>`;
+    o += `<line class="svg-fretline" x1="${gx}" y1="${gy}" x2="${gx}" y2="${gy+gridH}" stroke="#5a4030" stroke-width="${1*sc}"/>`;
+  }
+
+  // string labels
+  for (let s = 0; s < STRS; s++)
+    o += `<text class="svg-strlabel" x="${gx+gridW+4*sc}" y="${sy(s)+3*sc}" font-size="${5.5*sc}" fill="#7a5030" font-family="sans-serif">${cfg.labels[s]}</text>`;
+
+  // barre
+  const fc = {}; displayFrets.forEach(f => { if (f > 0) fc[f]=(fc[f]||0)+1; });
+  const barrePair = Object.entries(fc).find(([f,c]) => c >= (STRS >= 5 ? 4 : 3) && Number(f) === startFret);
+  if (barrePair) {
+    const bfn = Number(barrePair[0]);
+    const col = bfn - startFret + 1;
+    const cx  = gx + (col-0.5)*fretW;
+    const si  = displayFrets.indexOf(bfn), li = displayFrets.lastIndexOf(bfn);
+    o += `<rect class="svg-barre" x="${cx-4*sc}" y="${sy(si)-4*sc}" width="${8*sc}" height="${sy(li)-sy(si)+8*sc}" rx="${4*sc}" fill="#d0b070"/>`;
+    for (let s = si; s <= li; s++)
+      o += `<text class="svg-barre-txt" x="${cx}" y="${sy(s)+3*sc}" text-anchor="middle" font-size="${5.5*sc}" fill="#1a1008" font-family="sans-serif">${bfn}</text>`;
+  }
+
+  // dots
+  for (let s = 0; s < STRS; s++) {
+    const f = displayFrets[s];
+    const y = sy(s);
+    if (f === -1) {
+      const cx = gx - 8*sc, r = 2.5*sc;
+      o += `<line x1="${cx-r}" y1="${y-r}" x2="${cx+r}" y2="${y+r}" stroke="#888" stroke-width="${1.2*sc}"/>`;
+      o += `<line x1="${cx+r}" y1="${y-r}" x2="${cx-r}" y2="${y+r}" stroke="#888" stroke-width="${1.2*sc}"/>`;
+    } else if (f === 0) {
+      o += `<circle class="svg-open" cx="${gx-8*sc}" cy="${y}" r="${3*sc}" fill="none" stroke="#c8863a" stroke-width="${1*sc}"/>`;
+    } else {
+      const col = f - startFret + 1;
+      if (col >= 1 && col <= COLS) {
+        if (barrePair && f === Number(barrePair[0])) continue;
+        const cx = gx + (col-0.5)*fretW;
+        o += `<circle class="svg-dot" cx="${cx}" cy="${y}" r="${4*sc}" fill="#d0b070"/>`;
+        o += `<text class="svg-dot-txt" x="${cx}" y="${y+3*sc}" text-anchor="middle" font-size="${5.5*sc}" fill="#1a1008" font-family="sans-serif" font-weight="bold">${f}</text>`;
+      }
+    }
+  }
+  return o + `</svg>`;
+}
+
+// =====================================================================
+// SVG: KEYBOARD DIAGRAM
+// =====================================================================
+// Show one octave starting from C, highlight chord tones
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+// White key indices in an octave (0=C,2=D,4=E,5=F,7=G,9=A,11=B)
+const WHITE_KEYS = [0,2,4,5,7,9,11];
+const BLACK_KEYS = [1,3,6,8,10]; // sharps/flats
+
+function svgKeyboard(chordName) {
+  const tones = getKeyboardTones(chordName);
+  if (!tones) return null;
+  const toneSet = new Set(tones);
+
+  const sc = SCALE;
+  const wW = 12*sc, wH = 44*sc;
+  const bW =  8*sc, bH = 27*sc;
+  const NUM_WHITE = 7;
+  const pad = 5*sc; // left/right padding inside SVG for separation
+
+  const W = Math.round(wW * NUM_WHITE + pad*2 + 2);
+  const H = Math.round(wH + 16*sc);
+
+  let o = `<svg class="inline-diagram" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // dark background with visible border
+  o += `<rect class="svg-bg" width="${W}" height="${H}" rx="${4*sc}" fill="#1c1c1c" stroke="#4a4030" stroke-width="${1.5*sc}"/>`;
+
+  const whiteX = [];
+  for (let i = 0; i < NUM_WHITE; i++) whiteX.push(pad + 1 + i*wW);
+
+  // White keys
+  WHITE_KEYS.forEach((note, i) => {
+    const lit = toneSet.has(note);
+    const fill = lit ? '#f0c050' : '#e8e4d8';
+    const x = whiteX[i];
+    o += `<rect class="${lit?'kw-lit':'kw'}" x="${x}" y="${6*sc}" width="${wW-1}" height="${wH}" rx="${2*sc}" fill="${fill}" stroke="#555" stroke-width="0.6"/>`;
+    const label = NOTE_NAMES[note];
+    if (label === 'C' || lit)
+      o += `<text x="${x+wW/2-0.5}" y="${6*sc+wH-5*sc}" text-anchor="middle" font-size="${5.5*sc}" fill="${lit?'#6a3a00':'#888'}" font-family="sans-serif" font-weight="${lit?'bold':'normal'}">${label}</text>`;
+  });
+
+  // Black keys
+  const blackOffsets = [0,1,3,4,5];
+  BLACK_KEYS.forEach((note, i) => {
+    const lit = toneSet.has(note);
+    const fill = lit ? '#c07000' : '#222';
+    const wi = blackOffsets[i];
+    const x = whiteX[wi] + wW - bW/2;
+    o += `<rect class="${lit?'kb-lit':'kb'}" x="${x}" y="${6*sc}" width="${bW}" height="${bH}" rx="${2*sc}" fill="${fill}" stroke="#000" stroke-width="0.4"/>`;
+    if (lit)
+      o += `<text x="${x+bW/2}" y="${6*sc+bH-4*sc}" text-anchor="middle" font-size="${5*sc}" fill="#ffd080" font-family="sans-serif" font-weight="bold">${NOTE_NAMES[note]}</text>`;
+  });
+
+  // Chord label below keys
+  o += `<text x="${W/2}" y="${6*sc+wH+11*sc}" text-anchor="middle" font-size="${6*sc}" fill="#a08040" font-family="sans-serif">${esc(chordName)}</text>`;
+
+  return o + `</svg>`;
+}
+
+function diagHeight() {
+  if (INSTRUMENT === 'keyboard') return Math.round((6+44+16) * SCALE);
+  const cfg = INST_CONFIG[INSTRUMENT] || INST_CONFIG.ukulele;
+  return Math.round((8 + cfg.strH*(cfg.strings-1) + 8) * SCALE);
+}
+
+// =====================================================================
+// DIAGRAM DISPATCHER
+// =====================================================================
+function buildDiagram(fretsOrName) {
+  if (INSTRUMENT === 'keyboard') return svgKeyboard(fretsOrName);
+  return svgFretted(fretsOrName);
+}
+
+// =====================================================================
+// PARSER
+// =====================================================================
+function parseLine(line) {
+  const segs = [];
+  const re = /\[([^\]]+)\]/g;
+  let last=0, m;
+  while ((m=re.exec(line))!==null) {
+    if (m.index>last) segs.push({t:'text',v:line.slice(last,m.index)});
+    segs.push({t:'chord',v:m[1]});
+    last=m.index+m[0].length;
+  }
+  if (last<line.length) segs.push({t:'text',v:line.slice(last)});
+  return segs;
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// =====================================================================
+// RENDER
+// =====================================================================
+const textarea   = document.getElementById('lyricsInput');
+const titleInput = document.getElementById('titleInput');
+const wrap       = document.getElementById('lyricsWrap');
+const printTitle = document.getElementById('printTitle');
+const printMeta  = document.getElementById('printMeta');
+const transpVal  = document.getElementById('transpVal');
+
+function transpLabel(n){ return n===0?'±0':(n>0?'+':'')+n+' 半音'; }
+const INST_LABEL = { ukulele:'ウクレレ', guitar:'ギター', bass:'ベース', keyboard:'キーボード' };
+
+function render() {
+  const raw = textarea.value;
+  document.getElementById('charCount').textContent = raw.length + ' 文字';
+  printTitle.textContent = titleInput.value.trim();
+  const metaParts = [];
+  const lyricist = (document.getElementById('lyricistInput')||{value:''}).value.trim();
+  const composer = (document.getElementById('composerInput')||{value:''}).value.trim();
+  if (lyricist) metaParts.push('作詞: ' + lyricist);
+  if (composer) metaParts.push('作曲: ' + composer);
+  if (INST_LABEL[INSTRUMENT]) metaParts.push(INST_LABEL[INSTRUMENT]);
+  if (transpose !== 0) metaParts.push(`移調: ${transpLabel(transpose)}`);
+  printMeta.textContent = metaParts.join('　|　');
+
+  if (!raw.trim()) {
+    wrap.innerHTML = `<p style="color:var(--text-dim);font-size:0.82rem;">左に歌詞を入力してください</p>`;
+    return;
+  }
+
+  const diagH = diagHeight();
+  let html = '';
+
+  raw.split('\n').forEach(line => {
+    if (!line.trim()) { html += `<div class="line-gap"></div>`; return; }
+    const segs = parseLine(line);
+    const hasChords = segs.some(s=>s.t==='chord');
+
+    if (!hasChords) {
+      html += `<div class="lyric-line"><span class="chunk">`;
+      html += `<span style="display:block;height:${diagH+16}px;"></span>`;
+      html += `<span class="lyric-text">${esc(line)}</span>`;
+      html += `</span></div>`;
+      return;
+    }
+
+    html += `<div class="lyric-line">`;
+    let i=0;
+    while (i<segs.length) {
+      const seg=segs[i];
+      if (seg.t==='chord') {
+        const disp = transposeChord(seg.v, transpose);
+        const val  = lookup(disp, INSTRUMENT);
+        const txt  = (i+1<segs.length&&segs[i+1].t==='text') ? segs[i+1].v : '';
+        if (i+1<segs.length&&segs[i+1].t==='text') i++;
+
+        html += `<span class="chunk">`;
+        if (val !== null) {
+          let svgStr;
+          if (INSTRUMENT === 'keyboard') svgStr = svgKeyboard(disp);
+          else if (INSTRUMENT === 'bass') svgStr = svgBass(val);
+          else svgStr = svgFretted(val);
+          if (svgStr) {
+            html += svgStr;
+            html += `<span class="chord-label">${esc(disp)}</span>`;
+          } else {
+            html += `<span style="display:block;height:${diagH}px;"></span>`;
+            html += `<span class="unknown-label">${esc(disp)}?</span>`;
+          }
+        } else {
+          html += `<span style="display:block;height:${diagH}px;"></span>`;
+          html += `<span class="unknown-label">${esc(disp)}?</span>`;
+        }
+        html += `<span class="lyric-text">${esc(txt)}</span>`;
+        html += `</span>`;
+      } else {
+        html += `<span class="chunk">`;
+        html += `<span style="display:block;height:${diagH+16}px;"></span>`;
+        html += `<span class="lyric-text">${esc(seg.v)}</span>`;
+        html += `</span>`;
+      }
+      i++;
+    }
+    html += `</div>`;
+  });
+
+  wrap.innerHTML = html;
+}
+
+// =====================================================================
+// EVENTS
+// =====================================================================
+textarea.addEventListener('input', render);
+titleInput.addEventListener('input', render);
+
+// Instrument
+document.querySelectorAll('.inst-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.inst-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    INSTRUMENT = btn.dataset.inst;
+    render();
+  });
+});
+
+// Transpose
+document.getElementById('transpDown').addEventListener('click', () => {
+  transpose = Math.max(-11, transpose-1);
+  transpVal.textContent = transpLabel(transpose);
+  render();
+});
+document.getElementById('transpUp').addEventListener('click', () => {
+  transpose = Math.min(11, transpose+1);
+  transpVal.textContent = transpLabel(transpose);
+  render();
+});
+document.getElementById('transpReset').addEventListener('click', () => {
+  transpose = 0;
+  transpVal.textContent = '±0';
+  render();
+});
+
+// Size
+document.querySelectorAll('.ctrl-btn[data-size]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.ctrl-btn[data-size]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    SCALE = parseFloat(btn.dataset.size);
+    render();
+  });
+});
+
+// ── Theme toggle ──
+const themeBtn = document.getElementById('themeBtn');
+let isLight = true;
+document.documentElement.classList.add('light');
+themeBtn.textContent = '🌙 ダーク';
+themeBtn.addEventListener('click', () => {
+  isLight = !isLight;
+  document.documentElement.classList.toggle('light', isLight);
+  themeBtn.textContent = isLight ? '🌙 ダーク' : '☀️ ライト';
+});
+
+// =====================================================================
+// SONG LIBRARY  (localStorage)
+// =====================================================================
+const STORAGE_KEY = 'chord_viewer_songs';
+let currentSongId = null;
+
+function loadSongs() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+function saveSongs(songs) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(songs)); }
+  catch(e) { alert('保存に失敗しました: ' + e.message); }
+}
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+function renderLibrary() {
+  const songs = loadSongs();
+  const list  = document.getElementById('libList');
+  const empty = document.getElementById('libEmpty');
+
+  list.querySelectorAll('.lib-item').forEach(el => el.remove());
+
+  if (songs.length === 0) {
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  songs.forEach(song => {
+    const item = document.createElement('div');
+    item.className = 'lib-item' + (song.id === currentSongId ? ' active' : '');
+    item.dataset.id = song.id;
+
+    const inst = song.instrument || 'ukulele';
+    const instIcon = { ukulele:'🎸', guitar:'🎸', bass:'🎸', keyboard:'🎹' }[inst] || '🎵';
+    const dateStr = song.updatedAt ? new Date(song.updatedAt).toLocaleDateString('ja-JP',{month:'short',day:'numeric'}) : '';
+
+    item.innerHTML = `
+      <div style="flex:1;min-width:0;">
+        <div class="lib-item-name" title="${esc(song.title || '無題')}">${instIcon} ${esc(song.title || '無題')}</div>
+        <div class="lib-item-date">${dateStr}</div>
+      </div>
+      <button class="lib-item-del" data-id="${song.id}" title="削除">✕</button>
+    `;
+    item.querySelector('.lib-item-name').addEventListener('click', () => loadSong(song.id));
+    item.querySelector('.lib-item-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm(`「${song.title || '無題'}」を本当に削除してもよろしいですか？\nこの操作は元に戻せません。`)) deleteSong(song.id);
+    });
+    list.appendChild(item);
+  });
+  const sel = document.getElementById('mobSongSelect');
+  if (sel) {
+    while (sel.options.length > 1) sel.remove(1);
+    songs.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = (s.title || '無題');
+      if (s.id === currentSongId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function saveSong() {
+  const title    = document.getElementById('titleInput').value.trim() || '無題';
+  const lyrics   = document.getElementById('lyricsInput').value;
+  const lyricist = (document.getElementById('lyricistInput')||{value:''}).value.trim();
+  const composer = (document.getElementById('composerInput')||{value:''}).value.trim();
+  const songs    = loadSongs();
+
+  if (currentSongId) {
+    const idx = songs.findIndex(s => s.id === currentSongId);
+    if (idx >= 0) {
+      songs[idx] = { ...songs[idx], title, lyrics, lyricist, composer, instrument: INSTRUMENT, transpose, updatedAt: Date.now() };
+      saveSongs(songs);
+      renderLibrary();
+      flashSaved();
+      return;
+    }
+  }
+  const song = { id: genId(), title, lyrics, lyricist, composer, instrument: INSTRUMENT, transpose, createdAt: Date.now(), updatedAt: Date.now() };
+  songs.unshift(song);
+  saveSongs(songs);
+  currentSongId = song.id;
+  renderLibrary();
+  flashSaved();
+}
+
+function loadSong(id) {
+  const songs = loadSongs();
+  const song  = songs.find(s => s.id === id);
+  if (!song) return;
+  currentSongId = id;
+  document.getElementById('titleInput').value  = song.title    || '';
+  document.getElementById('lyricsInput').value = song.lyrics   || '';
+  const lEl = document.getElementById('lyricistInput'); if (lEl) lEl.value = song.lyricist || '';
+  const cEl = document.getElementById('composerInput'); if (cEl) cEl.value = song.composer || '';
+  if (song.instrument) {
+    INSTRUMENT = song.instrument;
+    document.querySelectorAll('.inst-btn').forEach(b => b.classList.toggle('active', b.dataset.inst === INSTRUMENT));
+  }
+  transpose = song.transpose || 0;
+  document.getElementById('transpVal').textContent = transpLabel(transpose);
+  render();
+  renderLibrary();
+  if (window.innerWidth <= 700 && typeof switchMobTab === 'function') switchMobTab('preview');
+}
+
+function deleteSong(id) {
+  let songs = loadSongs();
+  songs = songs.filter(s => s.id !== id);
+  saveSongs(songs);
+  if (currentSongId === id) {
+    currentSongId = null;
+    document.getElementById('titleInput').value  = '';
+    document.getElementById('lyricsInput').value = '';
+    const lD = document.getElementById('lyricistInput'); if (lD) lD.value = '';
+    const cD = document.getElementById('composerInput'); if (cD) cD.value = '';
+    render();
+  }
+  renderLibrary();
+}
+
+function newSong() {
+  const currentLyrics = document.getElementById('lyricsInput').value;
+  const currentTitle  = document.getElementById('titleInput').value;
+  if ((currentLyrics.trim() || currentTitle.trim()) &&
+      !confirm('新規作成すると編集中の歌詞は失われます。\nよろしいですか？')) return;
+  currentSongId = null;
+  document.getElementById('titleInput').value  = '';
+  document.getElementById('lyricsInput').value = '';
+  const lN = document.getElementById('lyricistInput'); if (lN) lN.value = '';
+  const cN = document.getElementById('composerInput'); if (cN) cN.value = '';
+  transpose = 0;
+  document.getElementById('transpVal').textContent = '±0';
+  render();
+  renderLibrary();
+  document.getElementById('titleInput').focus();
+}
+
+function flashSaved() {
+  const btn = document.getElementById('libSaveBtn');
+  btn.textContent = '✓ 保存済み';
+  btn.classList.add('saved');
+  setTimeout(() => { btn.textContent = '💾 保存'; btn.classList.remove('saved'); }, 1800);
+}
+
+document.getElementById('libSaveBtn').addEventListener('click', saveSong);
+document.getElementById('libNewBtn').addEventListener('click', newSong);
+['lyricsInput','titleInput','lyricistInput','composerInput'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', () => {
+    const btn = document.getElementById('libSaveBtn');
+    btn.textContent = '💾 保存*'; btn.classList.remove('saved');
+  });
+});
+['lyricistInput','composerInput'].forEach(id => {
+  const el = document.getElementById(id); if (el) el.addEventListener('input', render);
+});
+const lnb = document.getElementById('libNewBtnMob'); if (lnb) lnb.addEventListener('click', newSong);
+const mss = document.getElementById('mobSongSelect'); if (mss) mss.addEventListener('change', function() { if (this.value) loadSong(this.value); });
+// スマホ削除ボタン
+const mdb = document.getElementById('mobDelBtn');
+if (mdb) mdb.addEventListener('click', () => {
+  const sel = document.getElementById('mobSongSelect');
+  const id = sel ? sel.value : '';
+  if (!id) { alert('削除する曲を選択してください。'); return; }
+  const songs = loadSongs();
+  const song = songs.find(s => s.id === id);
+  if (!song) return;
+  if (confirm(`「${song.title || '無題'}」を本当に削除してもよろしいですか？
+この操作は元に戻せません。`)) {
+    deleteSong(id);
+  }
+});
+
+// ── Mobile tab switching ──
+function switchMobTab(tab) {
+  if (window.innerWidth > 700) return;
+  document.querySelectorAll('.editor-panel,.view-panel').forEach(p => p.classList.remove('mob-active'));
+  document.querySelectorAll('.mob-top-tab').forEach(t => t.classList.remove('active'));
+  const panel = document.querySelector(tab === 'edit' ? '.editor-panel' : '.view-panel');
+  const btn   = document.getElementById(tab === 'edit' ? 'mobTabEdit' : 'mobTabPreview');
+  if (panel) panel.classList.add('mob-active');
+  if (btn) btn.classList.add('active');
+}
+
+// Load library on start
+renderLibrary();
+
+// Initial
+document.getElementById('titleInput').value = '';
+textarea.value = '';
+const liEl = document.getElementById('lyricistInput'); if (liEl) liEl.value = '';
+const coEl = document.getElementById('composerInput'); if (coEl) coEl.value = '';
+render();
+// モバイル初期化
+if (window.innerWidth <= 700) {
+  switchMobTab('edit');
+}
+
+// =====================================================================
+// SHARED CAPTURE  (used by both PDF and Print)
+// =====================================================================
+async function captureContent() {
+  const DPI = 120;
+  const MM_TO_PX = DPI / 25.4;
+  const USABLE_W_MM = 210 - 12 * 2;  // A4 - margins
+  const renderW = Math.round(USABLE_W_MM * MM_TO_PX);
+
+  const scrollEl = document.querySelector('.view-scroll');
+  const orig = {
+    maxHeight: scrollEl.style.maxHeight,
+    overflow:  scrollEl.style.overflow,
+    width:     scrollEl.style.width,
+    padding:   scrollEl.style.padding,
+  };
+  scrollEl.style.maxHeight = 'none';
+  scrollEl.style.overflow  = 'visible';
+  scrollEl.style.width     = renderW + 'px';
+  scrollEl.style.padding   = '16px';
+
+  const applyPrintColors = (doc) => {
+    const el = doc.querySelector('.view-scroll');
+    if (el) {
+      el.style.background = '#fff'; el.style.color = '#000';
+      el.style.overflow = 'visible'; el.style.maxHeight = 'none';
+      el.style.width = renderW + 'px'; el.style.padding = '16px';
+    }
+    doc.querySelectorAll('.lyric-text,.plain-text').forEach(e => e.style.color='#000');
+    doc.querySelectorAll('.chord-label').forEach(e => e.style.color='#000');
+    doc.querySelectorAll('.unknown-label').forEach(e => e.style.color='#000');
+    doc.querySelectorAll('.print-title').forEach(e => e.style.color='#000');
+    doc.querySelectorAll('.print-meta').forEach(e => e.style.color='#555');
+    // SVG: white background, black lines/dots
+    doc.querySelectorAll('.svg-bg').forEach(e => { e.setAttribute('fill','#fff'); e.setAttribute('stroke','#bbb'); });
+    doc.querySelectorAll('.svg-fretline').forEach(e => e.setAttribute('stroke','#bbb'));
+    doc.querySelectorAll('.svg-string').forEach(e => e.setAttribute('stroke','#666'));
+    doc.querySelectorAll('.svg-nut').forEach(e => e.setAttribute('fill','#000'));
+    doc.querySelectorAll('.svg-dot').forEach(e => e.setAttribute('fill','#000'));
+    doc.querySelectorAll('.svg-dot-txt').forEach(e => e.setAttribute('fill','#fff'));
+    doc.querySelectorAll('.svg-open').forEach(e => { e.setAttribute('stroke','#000'); e.setAttribute('fill','none'); });
+    doc.querySelectorAll('.svg-barre').forEach(e => e.setAttribute('fill','#000'));
+    doc.querySelectorAll('.svg-barre-txt').forEach(e => e.setAttribute('fill','#fff'));
+    doc.querySelectorAll('.svg-strlabel').forEach(e => e.setAttribute('fill','#444'));
+    // Keyboard: white keys / black keys only
+    doc.querySelectorAll('.kw,.kw-lit').forEach(e => { e.setAttribute('fill','#fff'); e.setAttribute('stroke','#888'); });
+    doc.querySelectorAll('.kb,.kb-lit').forEach(e => e.setAttribute('fill','#000'));
+  };
+
+  const canvas = await html2canvas(scrollEl, {
+    scale: 1, useCORS: true, backgroundColor: '#ffffff',
+    width: renderW, windowWidth: renderW, logging: false,
+    onclone: applyPrintColors,
+  });
+
+  // Convert canvas to grayscale
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = Math.round(data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114);
+    data[i] = data[i+1] = data[i+2] = gray;
+  }
+  ctx.putImageData(imageData, 0, 0);
+
+  // Restore
+  scrollEl.style.maxHeight = orig.maxHeight;
+  scrollEl.style.overflow  = orig.overflow;
+  scrollEl.style.width     = orig.width;
+  scrollEl.style.padding   = orig.padding;
+
+  return { canvas, renderW, DPI };
+}
+
+// =====================================================================
+// PRINT
+// =====================================================================
+document.getElementById('printBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('printBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 準備中...';
+
+  try {
+    const { canvas, renderW, DPI } = await captureContent();
+    const pxToMm = 25.4 / DPI;
+    const PAGE_W_MM = 210, PAGE_H_MM = 297, MARGIN_MM = 12;
+    const USABLE_W_MM = PAGE_W_MM - MARGIN_MM * 2;
+    const USABLE_H_MM = PAGE_H_MM - MARGIN_MM * 2;
+    const totalH_MM = canvas.height * pxToMm;
+
+    // Build HTML with one <img> per page, sized exactly for A4
+    let pagesHtml = '';
+    let yMM = 0;
+    while (yMM < totalH_MM) {
+      const sliceStartPx  = Math.round(yMM / pxToMm);
+      const sliceHeightPx = Math.min(Math.round(USABLE_H_MM / pxToMm), canvas.height - sliceStartPx);
+      if (sliceHeightPx <= 0) break;
+
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = sliceHeightPx;
+      slice.getContext('2d').drawImage(canvas, 0, sliceStartPx, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+
+      const sliceH_MM = sliceHeightPx * pxToMm;
+      pagesHtml += `<div class="page"><img src="${slice.toDataURL('image/jpeg',0.93)}" style="width:${USABLE_W_MM}mm;height:${sliceH_MM}mm;display:block;"></div>`;
+      yMM += USABLE_H_MM;
+    }
+
+    const printHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  @page { size: A4 portrait; margin: ${MARGIN_MM}mm; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#fff; }
+  .page { width:${USABLE_W_MM}mm; page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  img { display:block; }
+</style></head><body>${pagesHtml}</body></html>`;
+
+    // Write to hidden iframe and print
+    let iframe = document.getElementById('printFrame');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'printFrame';
+      iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;';
+      document.body.appendChild(iframe);
+    }
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(printHtml);
+    iframe.contentDocument.close();
+    iframe.contentWindow.focus();
+    setTimeout(() => { iframe.contentWindow.print(); }, 400);
+
+  } catch(e) {
+    alert('印刷準備に失敗しました: ' + e.message);
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🖨 印刷';
+});
+
+// =====================================================================
+// PDF SAVE
+// =====================================================================
+document.getElementById('pdfBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('pdfBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中...';
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const { canvas, DPI } = await captureContent();
+
+    const PAGE_W_MM = 210, PAGE_H_MM = 297, MARGIN_MM = 12;
+    const USABLE_W_MM = PAGE_W_MM - MARGIN_MM * 2;
+    const USABLE_H_MM = PAGE_H_MM - MARGIN_MM * 2;
+    const pxToMm = 25.4 / DPI;
+    const totalH_MM = canvas.height * pxToMm;
+
+    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    let yMM = 0, page = 0;
+    while (yMM < totalH_MM) {
+      if (page > 0) pdf.addPage();
+      const sliceStartPx  = Math.round(yMM / pxToMm);
+      const sliceHeightPx = Math.min(Math.round(USABLE_H_MM / pxToMm), canvas.height - sliceStartPx);
+      if (sliceHeightPx <= 0) break;
+
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = sliceHeightPx;
+      slice.getContext('2d').drawImage(canvas, 0, sliceStartPx, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+
+      pdf.addImage(slice.toDataURL('image/jpeg',0.93), 'JPEG', MARGIN_MM, MARGIN_MM, USABLE_W_MM, sliceHeightPx * pxToMm);
+      yMM += USABLE_H_MM;
+      page++;
+    }
+
+    const title = (document.getElementById('titleInput').value.trim() || 'コード歌詞') + '.pdf';
+    pdf.save(title);
+
+  } catch(e) {
+    alert('PDF生成に失敗しました: ' + e.message);
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '📄 PDF保存';
+});
+</script>
+<!-- Help Modal -->
+<div class="help-overlay" id="helpOverlay">
+  <div class="help-modal">
+    <button class="help-close" id="helpClose">✕</button>
+    <h2>📖 使い方ガイド</h2>
+
+    <div class="help-section">
+      <h3>🎵 コードの書き方</h3>
+      <p>コード名を <code>[ ]</code> で囲んで歌詞に埋め込みます。</p>
+      <div class="example">
+        [C]春の[Am]風が[F]吹いて[G7]いる<br>
+        [Cadd9]夢の[Em]続き[Am]を[G]
+      </div>
+    </div>
+
+    <div class="help-section">
+      <h3>📚 曲の保存・管理</h3>
+      <p>タイトルを入力して <code>💾 保存</code> ボタンで保存します。左の曲リストから選択して読み込めます。保存した曲はブラウザに記録されます。</p>
+    </div>
+
+    <div class="help-section">
+      <h3>🎸 楽器の切り替え</h3>
+      <p>上部の楽器ボタンで <strong>ウクレレ・ギター・ベース・キーボード</strong> を切り替えると、コード図が変わります。</p>
+    </div>
+
+    <div class="help-section">
+      <h3>🔀 移調</h3>
+      <p>プレビュー上部の <code>−</code> <code>＋</code> ボタンで半音単位で移調できます。↺ でリセット。</p>
+    </div>
+
+    <div class="help-section">
+      <h3>🖨 印刷・PDF保存</h3>
+      <p>プレビュー上部の <code>🖨 印刷</code> または <code>📄 PDF保存</code> ボタンでA4サイズに出力できます。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('helpBtn').addEventListener('click', () => {
+  document.getElementById('helpOverlay').classList.add('open');
+});
+document.getElementById('helpClose').addEventListener('click', () => {
+  document.getElementById('helpOverlay').classList.remove('open');
+});
+document.getElementById('helpOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(() => console.log('SW registered'))
+      .catch(e => console.warn('SW failed:', e));
+  });
+}
+</script>
+</body>
+</html>
